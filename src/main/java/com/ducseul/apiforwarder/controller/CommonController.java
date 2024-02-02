@@ -54,41 +54,41 @@ public class CommonController {
     private static final Logger logger = LoggerFactory.getLogger(CommonController.class);
 
     @GetMapping
-    public ResponseEntity<String> getMapping(HttpServletRequest request) {
+    public <T> ResponseEntity<T> getMapping(HttpServletRequest request) {
         return process(request);
     }
 
     @PostMapping
-    public ResponseEntity<String> postMapping(HttpServletRequest request) {
+    public <T> ResponseEntity<T> postMapping(HttpServletRequest request) {
         return process(request);
     }
 
     @PutMapping
-    public ResponseEntity<String> putMapping(HttpServletRequest request) {
+    public <T> ResponseEntity<T> putMapping(HttpServletRequest request) {
         return process(request);
     }
 
     @PatchMapping
-    public ResponseEntity<String> patchMapping(HttpServletRequest request) {
+    public <T> ResponseEntity<T> patchMapping(HttpServletRequest request) {
         return process(request);
     }
 
     @DeleteMapping
-    public ResponseEntity<String> deleteMapping(HttpServletRequest request) {
+    public <T> ResponseEntity<T> deleteMapping(HttpServletRequest request) {
         return process(request);
     }
 
     @RequestMapping(method = RequestMethod.HEAD)
-    public ResponseEntity<String> headMapping(HttpServletRequest request) {
+    public <T> ResponseEntity<T> headMapping(HttpServletRequest request) {
         return process(request);
     }
 
     @RequestMapping(method = RequestMethod.OPTIONS)
-    public ResponseEntity<String> optionMapping(HttpServletRequest request) {
+    public <T> ResponseEntity<T> optionMapping(HttpServletRequest request) {
         return process(request);
     }
 
-
+    @SuppressWarnings("unchecked")
     public <T> ResponseEntity<T> process(HttpServletRequest request) {
         HTTPUtils httpUtils = new HTTPUtils();
         String originUrl = request.getRequestURI() + "?" + request.getQueryString();
@@ -158,6 +158,7 @@ public class CommonController {
         return new ResponseEntity<>((T) "{Not supported yet}", HttpStatus.NOT_ACCEPTABLE);
     }
 
+    @SuppressWarnings("unchecked")
     private <T> ResponseEntity<T> doMock(RequestWrapper requestWrapper, MapEntry mapperEndpoint) {
         String jsonMockPath = mapperEndpoint.getValue();
 
@@ -169,6 +170,7 @@ public class CommonController {
         return new ResponseEntity<>((T) FileUtils.getFileContent(jsonMockPath), responseHeaders, HttpStatus.OK);
     }
 
+    @SuppressWarnings("unchecked")
     private <T> ResponseEntity<T> doForward(RequestWrapper requestWrapper, MapEntry mapperEndpoint, boolean usingRedis) throws IOException {
         HTTPUtils httpUtils = new HTTPUtils();
         String forwardUrl = requestWrapper.getOriginUrl().replaceFirst(mapperEndpoint.getKey(), mapperEndpoint.getValue());
