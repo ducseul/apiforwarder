@@ -2,6 +2,7 @@ package com.ducseul.apiforwarder.entity;
 
 import com.google.gson.annotations.Expose;
 import lombok.*;
+import org.springframework.http.MediaType;
 
 import java.io.Serializable;
 import java.net.Proxy;
@@ -32,4 +33,5 @@ public class RequestWrapper {
     private Integer connectionTimeout = 0;
     private Proxy proxy;
     private Boolean isVerbose;
+    private MediaType contentType = MediaType.TEXT_HTML;
 }

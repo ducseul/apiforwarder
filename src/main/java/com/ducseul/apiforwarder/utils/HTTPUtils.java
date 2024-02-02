@@ -5,10 +5,7 @@ import com.google.gson.Gson;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.StringHttpMessageConverter;
-import org.springframework.util.StreamUtils;
-import org.springframework.web.client.ResponseExtractor;
 import org.springframework.web.client.RestTemplate;
-import sun.net.www.http.HttpClient;
 
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
@@ -88,7 +85,7 @@ public class HTTPUtils {
         return responseWrapper;
     }
 
-    public static RequestWrapper callApi(RequestWrapper requestWrapper) {
+    public static RequestWrapper doRequestUsingHTTPUrlConnection(RequestWrapper requestWrapper) {
         RequestWrapper responseWrapper = RequestWrapper.builder()
                 .requestUrl(requestWrapper.getRequestUrl())
                 .method(requestWrapper.getMethod())
@@ -105,45 +102,65 @@ public class HTTPUtils {
                 connection.setRequestProperty(entry.getKey(), entry.getValue().toString());
             }
 
-            // Set content type based on the request body
-            connection.setRequestProperty("Content-Type", "application/json");
-
             // Enable input/output streams
             connection.setDoOutput(true);
 
-            // Write request body
-            try (OutputStream outputStream = connection.getOutputStream()) {
-                outputStream.write(requestWrapper.getBody().getBytes());
-                outputStream.flush();
+            if(requestWrapper.getBody() != null && !requestWrapper.getBody().isEmpty()) {
+                // Set content type based on the request body
+                connection.setRequestProperty("Content-Type", "application/json");
+
+                // Write request body
+                try (OutputStream outputStream = connection.getOutputStream()) {
+                    outputStream.write(requestWrapper.getBody().getBytes());
+                    outputStream.flush();
+                }
             }
 
             int responseCode = connection.getResponseCode();
             InputStream inputStream = (responseCode < 400) ? connection.getInputStream() : connection.getErrorStream();
 
             // Set response headers
-            responseWrapper.setHeaders(connection.getHeaderFields());
+            Map<String, List<String>> headerFields = connection.getHeaderFields();
+            responseWrapper.setHeaders(headerFields.entrySet().stream()
+                    .collect(Collectors.toMap(
+                            Map.Entry::getKey,
+                            entry -> new ArrayList<>(entry.getValue())
+                    )));
 
             // Process response based on content type
             String contentType = connection.getHeaderField("Content-Type");
             if (contentType != null) {
-                if (contentType.contains("application/json")) {
-                    String jsonResponse = readStream(inputStream);
-                    responseWrapper.setBody(jsonResponse);
-                } else if (contentType.contains("application/octet-stream")) {
-                    // Handle binary response (if needed)
-                    throw new UnsupportedOperationException("Binary response handling not implemented.");
-                } else if (contentType.contains("application/xml")) {
-                    // Handle XML response here if needed
-                    throw new RuntimeException("Unsupported content type: " + contentType);
-                } else if (contentType.contains("text/html")) {
-                    // Handle HTML response (if needed)
-                    responseWrapper.setBody("HTML response received");
-                } else {
-                    throw new RuntimeException("Unsupported content type: " + contentType);
+                switch (contentType) {
+                    case "application/json":
+                        String jsonResponse = readStream(inputStream);
+                        responseWrapper.setContentType(MediaType.APPLICATION_JSON);
+                        responseWrapper.setBody(jsonResponse);
+                        break;
+                    case "application/octet-stream":
+                        // Handle binary response (if needed)
+                        throw new UnsupportedOperationException("Binary response handling not implemented.");
+                    case "application/xml":
+                        // Handle XML response here if needed
+                        throw new RuntimeException("Unsupported content type: " + contentType);
+                    case "text/html":
+                        // Handle HTML response (if needed)
+                        responseWrapper.setBody("HTML response received");
+                        break;
+                    case "application/pdf":
+                        // Handle PDF response here if needed
+                        Path tempPath = savePdfToFile(inputStream);
+                        if(tempPath.toFile().exists() && tempPath.toFile().canRead()){
+                            responseWrapper.setFilePath(tempPath.toString());
+                        }
+                        responseWrapper.setContentType(MediaType.APPLICATION_PDF);
+                        break;
+                    default:
+                        throw new RuntimeException("Unsupported content type: " + contentType);
                 }
             } else {
                 throw new RuntimeException("No content type provided in the response.");
             }
+
 
             connection.disconnect();
         } catch (IOException exception) {
@@ -156,6 +173,14 @@ public class HTTPUtils {
         }
 
         return responseWrapper;
+    }
+
+    private static Path savePdfToFile(InputStream inputStream) throws IOException {
+        // Write PDF content to a temp file
+        Path tempFilePath = Files.createTempFile("api_response", ".pdf");
+        Files.copy(inputStream, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
+        System.out.println("PDF written to temp folder: " + tempFilePath.toString());
+        return tempFilePath;
     }
 
     private static String readStream(InputStream inputStream) throws IOException {

@@ -23,12 +23,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.Serializable;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/**")
@@ -87,9 +89,9 @@ public class CommonController {
     }
 
 
-    public ResponseEntity<String> process(HttpServletRequest request) {
+    public <T> ResponseEntity<T> process(HttpServletRequest request) {
         HTTPUtils httpUtils = new HTTPUtils();
-        String originUrl = request.getRequestURI();
+        String originUrl = request.getRequestURI() + "?" + request.getQueryString();
         MapEntry mapperEndpoint = null;
         List<MapEntry> endpointMap = endpointMapConfig.getEndpointMapConfig();
         for (MapEntry mapEntry : endpointMap) {
@@ -100,7 +102,10 @@ public class CommonController {
         }
 
         if (mapperEndpoint == null){
-            return new ResponseEntity<>("Don't have forward rule for endpoint yet", HttpStatus.FORBIDDEN);
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .headers(new HttpHeaders())
+                    .body((T) "Don't have forward rule for endpoint yet");
         }
 
         String requestBody = httpUtils.getBody(request);
@@ -130,21 +135,30 @@ public class CommonController {
             String key = gson.toJson(requestWrapper);
             ResponseCacheEntity cacheValue = redisService.getValues(key);
             if(cacheValue != null){
-                return new ResponseEntity<>(cacheValue.getResponseBody(), HttpStatus.OK);
+                return new ResponseEntity<>((T) cacheValue.getResponseBody(), HttpStatus.OK);
             }
         }
-        switch (Constants.API_MODE.from(mapperEndpoint.getMode())){
-            case FORWARD:{
-                return doForward(requestWrapper, mapperEndpoint, configuration.getRedisEnable());
+        try {
+            switch (Constants.API_MODE.from(mapperEndpoint.getMode())) {
+                case FORWARD: {
+                    return doForward(requestWrapper, mapperEndpoint, configuration.getRedisEnable());
+                }
+                case MOCK: {
+                    return doMock(requestWrapper, mapperEndpoint);
+                }
             }
-            case MOCK:{
-                return doMock(requestWrapper, mapperEndpoint);
-            }
+        } catch (Exception exception){
+            logger.error(exception.getMessage(), exception);
+            UUID checkpoint = UUID.randomUUID();
+            HashMap<String, String> returnValue = new HashMap<>();
+            returnValue.put("message", exception.getMessage());
+            returnValue.put("checkpoint", checkpoint.toString());
+            return new ResponseEntity<>((T) new Gson().toJson(returnValue), HttpStatus.CHECKPOINT);
         }
-        return new ResponseEntity<>("{Not supported yet}", HttpStatus.NOT_ACCEPTABLE);
+        return new ResponseEntity<>((T) "{Not supported yet}", HttpStatus.NOT_ACCEPTABLE);
     }
 
-    private ResponseEntity<String> doMock(RequestWrapper requestWrapper, MapEntry mapperEndpoint) {
+    private <T> ResponseEntity<T> doMock(RequestWrapper requestWrapper, MapEntry mapperEndpoint) {
         String jsonMockPath = mapperEndpoint.getValue();
 
         HttpHeaders responseHeaders = new HttpHeaders();
@@ -152,20 +166,23 @@ public class CommonController {
 
         StringBuilder log = new StringBuilder("-----------------------------\n");
         log.append(String.format("Mock Request: %s", mapperEndpoint.getKey()));
-        return new ResponseEntity<>(FileUtils.getFileContent(jsonMockPath), responseHeaders, HttpStatus.OK);
+        return new ResponseEntity<>((T) FileUtils.getFileContent(jsonMockPath), responseHeaders, HttpStatus.OK);
     }
 
-    private ResponseEntity<String> doForward(RequestWrapper requestWrapper, MapEntry mapperEndpoint, boolean usingRedis) {
+    private <T> ResponseEntity<T> doForward(RequestWrapper requestWrapper, MapEntry mapperEndpoint, boolean usingRedis) throws IOException {
         HTTPUtils httpUtils = new HTTPUtils();
         String forwardUrl = requestWrapper.getOriginUrl().replaceFirst(mapperEndpoint.getKey(), mapperEndpoint.getValue());
         requestWrapper.setRequestUrl(forwardUrl);;
 
         HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.setContentType(MediaType.TEXT_HTML);
 
-        RequestWrapper responseWrapper = httpUtils.doRequest(requestWrapper);
+        RequestWrapper responseWrapper = HTTPUtils.doRequestUsingHTTPUrlConnection(requestWrapper);
+        responseHeaders.setContentType(responseWrapper.getContentType());
         if (responseWrapper.getHeaders() != null) {
             for (String headerKey : responseWrapper.getHeaders().keySet()) {
+                if(headerKey == null){
+                    continue;
+                }
                 responseHeaders.put(headerKey, (List<String>) responseWrapper.getHeaders().get(headerKey));
             }
         }
@@ -183,6 +200,15 @@ public class CommonController {
                     .build();
             redisService.putValues(gson.toJson(requestWrapper), cacheEntity);
         }
-        return new ResponseEntity<>(responseWrapper.getBody(), responseHeaders, HttpStatus.OK);
+        if(responseWrapper.getContentType()!= null
+                && responseWrapper.getContentType().equals(MediaType.APPLICATION_PDF)){
+            InputStream inputStream = Files.newInputStream(new File(responseWrapper.getFilePath()).toPath());
+            byte[] pdfBytes = FileUtils.readStreamBytes(inputStream);
+            return ResponseEntity.ok()
+                    .headers(responseHeaders)
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body((T) pdfBytes);
+        }
+        return new ResponseEntity<>((T) responseWrapper.getBody(), responseHeaders, HttpStatus.OK);
     }
 }

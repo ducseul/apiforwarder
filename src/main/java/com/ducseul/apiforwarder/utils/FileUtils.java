@@ -1,7 +1,6 @@
 package com.ducseul.apiforwarder.utils;
 
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.util.Scanner;
 
 public class FileUtils {
@@ -20,5 +19,16 @@ public class FileUtils {
         }
         myReader.close();
         return fileContent.toString();
+    }
+
+    public static byte[] readStreamBytes(InputStream inputStream) throws IOException {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[4096];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                outputStream.write(buffer, 0, bytesRead);
+            }
+            return outputStream.toByteArray();
+        }
     }
 }
