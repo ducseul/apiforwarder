@@ -91,7 +91,9 @@ public class CommonController {
     @SuppressWarnings("unchecked")
     public <T> ResponseEntity<T> process(HttpServletRequest request) {
         HTTPUtils httpUtils = new HTTPUtils();
-        String originUrl = request.getRequestURI() + "?" + request.getQueryString();
+        String originUrl = request.getQueryString() != null
+                ? request.getRequestURI() + "?" + request.getQueryString()
+                : request.getRequestURI();
         MapEntry mapperEndpoint = null;
         List<MapEntry> endpointMap = endpointMapConfig.getEndpointMapConfig();
         for (MapEntry mapEntry : endpointMap) {
@@ -153,7 +155,7 @@ public class CommonController {
             HashMap<String, String> returnValue = new HashMap<>();
             returnValue.put("message", exception.getMessage());
             returnValue.put("checkpoint", checkpoint.toString());
-            return new ResponseEntity<>((T) new Gson().toJson(returnValue), HttpStatus.CHECKPOINT);
+            return new ResponseEntity<>((T) new Gson().toJson(returnValue), HttpStatus.NO_CONTENT);
         }
         return new ResponseEntity<>((T) "{Not supported yet}", HttpStatus.NOT_ACCEPTABLE);
     }

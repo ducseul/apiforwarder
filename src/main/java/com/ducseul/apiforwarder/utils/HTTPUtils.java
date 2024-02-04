@@ -10,7 +10,6 @@ import org.springframework.web.client.RestTemplate;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import java.io.*;
-
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -19,6 +18,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
 
 public class HTTPUtils {
     public RequestWrapper doRequest(RequestWrapper requestWrapper) {
@@ -129,6 +131,7 @@ public class HTTPUtils {
 
             // Process response based on content type
             String contentType = connection.getHeaderField("Content-Type");
+            contentType = contentType.split(";")[0];
             if (contentType != null) {
                 switch (contentType) {
                     case "application/json":
@@ -143,8 +146,30 @@ public class HTTPUtils {
                         // Handle XML response here if needed
                         throw new RuntimeException("Unsupported content type: " + contentType);
                     case "text/html":
+                    case "text/javascript":
+                    case "text/css":
                         // Handle HTML response (if needed)
-                        responseWrapper.setBody("HTML response received");
+                        // open the stream and put it into BufferedReader
+                        StringBuilder htmlContent = new StringBuilder(500);
+                        Reader reader;
+                        switch (connection.getContentEncoding()){
+                            case "gzip":
+                                reader = new InputStreamReader(new GZIPInputStream(connection.getInputStream()));
+                                break;
+                            case "br":
+                                throw new RuntimeException("jbrotli compress not supported yet");
+                            default:
+                                reader = new InputStreamReader(connection.getInputStream());
+                        }
+                        while (true) {
+                            int ch = reader.read();
+                            if (ch==-1) {
+                                break;
+                            }
+                            htmlContent.append((char)ch);
+                        }
+                        responseWrapper.setBody(htmlContent.toString());
+                        responseWrapper.setContentType(MediaType.TEXT_HTML);
                         break;
                     case "application/pdf":
                         // Handle PDF response here if needed
@@ -170,9 +195,28 @@ public class HTTPUtils {
             returnValue.put("message", exception.getMessage());
             returnValue.put("checkpoint", checkpoint.toString());
             responseWrapper.setBody(new Gson().toJson(returnValue));
+        } finally {
+            if(responseWrapper.getHeaders().containsKey("Content-Encoding")){
+                //If old header is contain gzip compression then remove it
+                ((ArrayList<?>)responseWrapper.getHeaders().get("Content-Encoding")).remove("gzip");
+            }
         }
 
         return responseWrapper;
+    }
+
+    public static byte[] decodeBrotli(InputStream compressedInputStream) throws IOException {
+        try (ByteArrayOutputStream decompressedOutputStream = new ByteArrayOutputStream();
+             InflaterInputStream inflaterInputStream = new InflaterInputStream(compressedInputStream, new Inflater(true))) {
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = inflaterInputStream.read(buffer)) != -1) {
+                decompressedOutputStream.write(buffer, 0, bytesRead);
+            }
+
+            return decompressedOutputStream.toByteArray();
+        }
     }
 
     private static Path savePdfToFile(InputStream inputStream) throws IOException {

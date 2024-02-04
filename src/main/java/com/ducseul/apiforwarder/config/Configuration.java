@@ -29,6 +29,9 @@ public class Configuration {
     @Value("${application.redis.time-to-live}")
     private Integer dataTTL;
 
+    @Value("${application.forwarder.method}")
+    private String[] allowStatus;
+
     @Override
     public String toString() {
         return "Configuration{" +
