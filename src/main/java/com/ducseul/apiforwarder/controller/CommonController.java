@@ -194,11 +194,14 @@ public class CommonController {
             }
         }
 
-        StringBuilder log = new StringBuilder("-----------------------------\n");
-        log.append("Request: \n");
-        log.append(new Gson().toJson(requestWrapper));
-        log.append("Response: \n");
-        log.append(new Gson().toJson(responseWrapper));
+        if(configuration.getIsVerbose()) {
+            StringBuilder log = new StringBuilder("\n-----------------------------\n");
+            log.append("Request: \n");
+            log.append(new Gson().toJson(requestWrapper));
+            log.append("\nResponse: \n");
+            log.append(new Gson().toJson(responseWrapper));
+            logger.info(log.toString());
+        }
 
         if (usingRedis){
 
