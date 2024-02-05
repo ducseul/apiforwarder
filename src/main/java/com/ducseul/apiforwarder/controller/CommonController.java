@@ -27,10 +27,7 @@ import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.file.Files;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 @RestController
 @RequestMapping("/**")
@@ -55,41 +52,41 @@ public class CommonController {
 
     @GetMapping
     public <T> ResponseEntity<T> getMapping(HttpServletRequest request) {
-        return process(request);
+        return process(request, "GET");
     }
 
     @PostMapping
     public <T> ResponseEntity<T> postMapping(HttpServletRequest request) {
-        return process(request);
+        return process(request, "POST");
     }
 
     @PutMapping
     public <T> ResponseEntity<T> putMapping(HttpServletRequest request) {
-        return process(request);
+        return process(request, "PUT");
     }
 
     @PatchMapping
     public <T> ResponseEntity<T> patchMapping(HttpServletRequest request) {
-        return process(request);
+        return process(request, "PATCH");
     }
 
     @DeleteMapping
     public <T> ResponseEntity<T> deleteMapping(HttpServletRequest request) {
-        return process(request);
+        return process(request, "DELETE");
     }
 
     @RequestMapping(method = RequestMethod.HEAD)
     public <T> ResponseEntity<T> headMapping(HttpServletRequest request) {
-        return process(request);
+        return process(request, "HEAD");
     }
 
     @RequestMapping(method = RequestMethod.OPTIONS)
-    public <T> ResponseEntity<T> optionMapping(HttpServletRequest request) {
-        return process(request);
+    public <T> ResponseEntity<T> optionsMapping(HttpServletRequest request) {
+        return process(request, "OPTIONS");
     }
 
     @SuppressWarnings("unchecked")
-    public <T> ResponseEntity<T> process(HttpServletRequest request) {
+    public <T> ResponseEntity<T> process(HttpServletRequest request, String method) {
         HTTPUtils httpUtils = new HTTPUtils();
         String originUrl = request.getQueryString() != null
                 ? request.getRequestURI() + "?" + request.getQueryString()
@@ -108,6 +105,12 @@ public class CommonController {
                     .status(HttpStatus.FORBIDDEN)
                     .headers(new HttpHeaders())
                     .body((T) "Don't have forward rule for endpoint yet");
+        }
+        if(mapperEndpoint != null && mapperEndpoint.getMethod() != null){
+            boolean allowMethod = Arrays.stream(mapperEndpoint.getMethod()).anyMatch(method::equals);
+            if (!allowMethod){
+                return new ResponseEntity<>((T) "Method is not allow", HttpStatus.NOT_ACCEPTABLE);
+            }
         }
 
         String requestBody = httpUtils.getBody(request);
@@ -155,7 +158,7 @@ public class CommonController {
             HashMap<String, String> returnValue = new HashMap<>();
             returnValue.put("message", exception.getMessage());
             returnValue.put("checkpoint", checkpoint.toString());
-            return new ResponseEntity<>((T) new Gson().toJson(returnValue), HttpStatus.NO_CONTENT);
+            return new ResponseEntity<>((T) new Gson().toJson(returnValue), HttpStatus.BAD_GATEWAY);
         }
         return new ResponseEntity<>((T) "{Not supported yet}", HttpStatus.NOT_ACCEPTABLE);
     }

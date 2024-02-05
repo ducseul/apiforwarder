@@ -1,11 +1,47 @@
 application:
   forwarder:
     endpoint-map-config:
+      - key: "/rest/invitationIn/actions"
+        value: "/home/mockFile/invitation_in_actions.json"
+        mode: mock
+        method: "GET, POST"
+        priority: 1
+
+      - key: "/rest/invitationOut/actions"
+        value: "/home/mockFile/invitation_out_actions.json"
+        method: "GET, POST"
+        mode: mock
+        priority: 1
+
+      - key: "/rest/mission/actions"
+        value: "/home/mockFile/mission_actions.json"
+        method: "GET, POST"
+        mode: mock
+        priority: 1
+
+      - key: "/rest/workProfileManage/actions"
+        value: "/home/mockFile/work_profile_manager_actions.json"
+        method: "GET, POST"
+        mode: mock
+        priority: 1
+
+      - key: "/rest/docSubmit/actions"
+        value: "/home/mockFile/docSubmit_actions.json"
+        method: "GET, POST"
+        mode: mock
+        priority: 1
+
+      - key: "/rest/count/countInHome"
+        value: "/home/mockFile/count_in_home.json"
+        method: "GET, POST"
+        mode: mock
+        priority: 1
+
       - key: "/"
         value: "http://116.103.227.208:8080/"
+        method: "GET, POST"
         mode: forward
         priority: 2
-
 #      - key: "/"
 #        value: "http://116.103.227.208:8080/"
 #        mode: forward

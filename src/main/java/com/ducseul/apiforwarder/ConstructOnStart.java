@@ -56,6 +56,7 @@ public class ConstructOnStart {
                         break;
                 }
 
+                //If any endpointMap has no method provided then it mean allow all
             }
             logger.info("PostConstruct init and checking done.");
         } catch (Exception exception) {
