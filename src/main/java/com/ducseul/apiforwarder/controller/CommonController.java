@@ -151,6 +151,8 @@ public class CommonController {
                 case MOCK: {
                     return doMock(requestWrapper, mapperEndpoint);
                 }
+                default:
+                    logger.error("Request mode not found or develop yet.");
             }
         } catch (Exception exception){
             logger.error(exception.getMessage(), exception);
@@ -158,8 +160,11 @@ public class CommonController {
             HashMap<String, String> returnValue = new HashMap<>();
             returnValue.put("message", exception.getMessage());
             returnValue.put("checkpoint", checkpoint.toString());
+            logger.info(new Gson().toJson(requestWrapper) + "\n" + new Gson().toJson(returnValue));
             return new ResponseEntity<>((T) new Gson().toJson(returnValue), HttpStatus.BAD_GATEWAY);
         }
+
+        logger.info(new Gson().toJson(requestWrapper) + "\n{Not supported yet}");
         return new ResponseEntity<>((T) "{Not supported yet}", HttpStatus.NOT_ACCEPTABLE);
     }
 
@@ -170,48 +175,54 @@ public class CommonController {
         HttpHeaders responseHeaders = new HttpHeaders();
         responseHeaders.setContentType(MediaType.APPLICATION_JSON);
 
-        StringBuilder log = new StringBuilder("-----------------------------\n");
+        StringBuilder log = new StringBuilder("\n\n-----------------------------\n");
         log.append(String.format("Mock Request: %s", mapperEndpoint.getKey()));
         return new ResponseEntity<>((T) FileUtils.getFileContent(jsonMockPath), responseHeaders, HttpStatus.OK);
     }
 
     @SuppressWarnings("unchecked")
     private <T> ResponseEntity<T> doForward(RequestWrapper requestWrapper, MapEntry mapperEndpoint, boolean usingRedis) throws IOException {
-        HTTPUtils httpUtils = new HTTPUtils();
-        String forwardUrl = requestWrapper.getOriginUrl().replaceFirst(mapperEndpoint.getKey(), mapperEndpoint.getValue());
-        requestWrapper.setRequestUrl(forwardUrl);;
-
+        RequestWrapper responseWrapper = null;
         HttpHeaders responseHeaders = new HttpHeaders();
+        try {
+            String forwardUrl = requestWrapper.getOriginUrl().replaceFirst(mapperEndpoint.getKey(), mapperEndpoint.getValue());
+            requestWrapper.setRequestUrl(forwardUrl);
 
-        RequestWrapper responseWrapper = HTTPUtils.doRequestUsingHTTPUrlConnection(requestWrapper);
-        responseHeaders.setContentType(responseWrapper.getContentType());
-        if (responseWrapper.getHeaders() != null) {
-            for (String headerKey : responseWrapper.getHeaders().keySet()) {
-                if(headerKey == null){
-                    continue;
+
+            responseWrapper = HTTPUtils.doRequestUsingHTTPUrlConnection(requestWrapper);
+            responseHeaders.setContentType(responseWrapper.getContentType());
+            if (responseWrapper.getHeaders() != null) {
+                for (String headerKey : responseWrapper.getHeaders().keySet()) {
+                    if (headerKey == null) {
+                        continue;
+                    }
+                    responseHeaders.put(headerKey, (List<String>) responseWrapper.getHeaders().get(headerKey));
                 }
-                responseHeaders.put(headerKey, (List<String>) responseWrapper.getHeaders().get(headerKey));
+            }
+
+            if (usingRedis) {
+
+                ResponseCacheEntity cacheEntity = ResponseCacheEntity.builder()
+                        .responseBody(responseWrapper.getBody())
+                        .build();
+                redisService.putValues(gson.toJson(requestWrapper), cacheEntity);
+            }
+
+        } catch (Exception exception){
+            logger.error(exception.getMessage(), exception);
+        } finally {
+            if (configuration.getIsVerbose()) {
+                StringBuilder log = new StringBuilder("\n\n-----------------------------\n");
+                log.append("Request: \n");
+                log.append(new Gson().toJson(requestWrapper));
+                log.append("\nResponse: \n");
+                log.append(new Gson().toJson(responseWrapper));
+                logger.info(log.toString());
             }
         }
 
-        if(configuration.getIsVerbose()) {
-            StringBuilder log = new StringBuilder("\n-----------------------------\n");
-            log.append("Request: \n");
-            log.append(new Gson().toJson(requestWrapper));
-            log.append("\nResponse: \n");
-            log.append(new Gson().toJson(responseWrapper));
-            logger.info(log.toString());
-        }
-
-        if (usingRedis){
-
-            ResponseCacheEntity cacheEntity = ResponseCacheEntity.builder()
-                    .responseBody(responseWrapper.getBody())
-                    .build();
-            redisService.putValues(gson.toJson(requestWrapper), cacheEntity);
-        }
-        if(responseWrapper.getContentType()!= null
-                && responseWrapper.getContentType().equals(MediaType.APPLICATION_PDF)){
+        if (responseWrapper.getContentType() != null
+                && responseWrapper.getContentType().equals(MediaType.APPLICATION_PDF)) {
             InputStream inputStream = Files.newInputStream(new File(responseWrapper.getFilePath()).toPath());
             byte[] pdfBytes = FileUtils.readStreamBytes(inputStream);
             return ResponseEntity.ok()

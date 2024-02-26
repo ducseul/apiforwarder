@@ -1,7 +1,10 @@
 package com.ducseul.apiforwarder.utils;
 
+import com.ducseul.apiforwarder.controller.CommonController;
 import com.ducseul.apiforwarder.entity.RequestWrapper;
 import com.google.gson.Gson;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -23,6 +26,7 @@ import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
 public class HTTPUtils {
+    private static final Logger logger = LoggerFactory.getLogger(CommonController.class);
     public RequestWrapper doRequest(RequestWrapper requestWrapper) {
         RequestWrapper responseWrapper = RequestWrapper.builder()
                 .requestUrl(requestWrapper.getRequestUrl())
