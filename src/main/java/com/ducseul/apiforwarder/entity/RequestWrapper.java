@@ -25,7 +25,9 @@ public class RequestWrapper {
     private Constants.METHOD method;
     @Expose
     private String requestIp;
+    @Expose
     private Map<String, Serializable> headers;
+    @Expose
     private HashMap<String, String> cookies;
     @Expose
     private String body;
@@ -33,5 +35,9 @@ public class RequestWrapper {
     private Integer connectionTimeout = 0;
     private Proxy proxy;
     private Boolean isVerbose;
+    @Expose
     private MediaType contentType = MediaType.TEXT_HTML;
+    private Long startProcessTime;
+    @Expose
+    private Long processTime;
 }

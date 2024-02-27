@@ -87,6 +87,7 @@ public class CommonController {
 
     @SuppressWarnings("unchecked")
     public <T> ResponseEntity<T> process(HttpServletRequest request, String method) {
+        Long startTime = System.currentTimeMillis();
         HTTPUtils httpUtils = new HTTPUtils();
         String originUrl = request.getQueryString() != null
                 ? request.getRequestURI() + "?" + request.getQueryString()
@@ -100,15 +101,15 @@ public class CommonController {
             }
         }
 
-        if (mapperEndpoint == null){
+        if (mapperEndpoint == null) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .headers(new HttpHeaders())
                     .body((T) "Don't have forward rule for endpoint yet");
         }
-        if(mapperEndpoint != null && mapperEndpoint.getMethod() != null){
+        if (mapperEndpoint != null && mapperEndpoint.getMethod() != null) {
             boolean allowMethod = Arrays.stream(mapperEndpoint.getMethod()).anyMatch(method::equals);
-            if (!allowMethod){
+            if (!allowMethod) {
                 return new ResponseEntity<>((T) "Method is not allow", HttpStatus.NOT_ACCEPTABLE);
             }
         }
@@ -134,12 +135,13 @@ public class CommonController {
                 .headers(header)
                 .cookies(cookies)
                 .body(requestBody)
+                .startProcessTime(startTime)
                 .build();
 
-        if (configuration.getRedisEnable() && !header.containsKey("Cache-disable"))  {
+        if (configuration.getRedisEnable() && !header.containsKey("Cache-disable")) {
             String key = gson.toJson(requestWrapper);
             ResponseCacheEntity cacheValue = redisService.getValues(key);
-            if(cacheValue != null){
+            if (cacheValue != null) {
                 return new ResponseEntity<>((T) cacheValue.getResponseBody(), HttpStatus.OK);
             }
         }
@@ -154,7 +156,7 @@ public class CommonController {
                 default:
                     logger.error("Request mode not found or develop yet.");
             }
-        } catch (Exception exception){
+        } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);
             UUID checkpoint = UUID.randomUUID();
             HashMap<String, String> returnValue = new HashMap<>();
@@ -201,14 +203,14 @@ public class CommonController {
             }
 
             if (usingRedis) {
-
                 ResponseCacheEntity cacheEntity = ResponseCacheEntity.builder()
                         .responseBody(responseWrapper.getBody())
                         .build();
                 redisService.putValues(gson.toJson(requestWrapper), cacheEntity);
             }
 
-        } catch (Exception exception){
+            responseWrapper.setProcessTime(System.currentTimeMillis() - requestWrapper.getStartProcessTime());
+        } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);
         } finally {
             if (configuration.getIsVerbose()) {
@@ -220,6 +222,7 @@ public class CommonController {
                 logger.info(log.toString());
             }
         }
+
 
         if (responseWrapper.getContentType() != null
                 && responseWrapper.getContentType().equals(MediaType.APPLICATION_PDF)) {
