@@ -14,8 +14,8 @@ public class Configuration {
     @Autowired
     private Environment env;
 
-    @Value("${application.forwarder.verbose}")
-    private Boolean isVerbose;
+    @Value("${application.forwarder.verbose:false}")
+    private boolean isVerbose;
 
     @Value("${application.forwarder.connection-timeout}")
     private Integer connectionTimeout;
@@ -24,7 +24,7 @@ public class Configuration {
     private Integer readTimeOut;
 
     @Value("${application.redis.enabled}")
-    private Boolean redisEnable;
+    private boolean redisEnable;
 
     @Value("${application.redis.time-to-live}")
     private Integer dataTTL;

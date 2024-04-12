@@ -9,16 +9,17 @@ import com.ducseul.apiforwarder.entity.MapEntry;
 import com.ducseul.apiforwarder.entity.RequestWrapper;
 import com.ducseul.apiforwarder.entity.ResponseCacheEntity;
 import com.ducseul.apiforwarder.service.RedisService;
-import com.ducseul.apiforwarder.utils.FileUtils;
+import com.ducseul.apiforwarder.topology.DummyExecutorImp;
+import com.ducseul.apiforwarder.topology.ForwardExecutorImp;
+import com.ducseul.apiforwarder.topology.MockExecutorImp;
+import com.ducseul.apiforwarder.topology.ExecutorInterface;
 import com.ducseul.apiforwarder.utils.HTTPUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,23 +27,30 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
-import java.nio.file.Files;
 import java.util.*;
 
 @RestController
 @RequestMapping("/**")
 public class CommonController {
-    @Autowired
-    private Configuration configuration;
+    private final Configuration configuration;
+    private final EndpointMapConfig endpointMapConfig;
+    private final ProxyConfiguration proxyConfiguration;
+    private final RedisService redisService;
+    private final ForwardExecutorImp forwdExecutor;
+    private final MockExecutorImp mockExecutor;
+    private final DummyExecutorImp dummyExecutor;
 
-    @Autowired
-    private EndpointMapConfig endpointMapConfig;
-
-    @Autowired
-    private ProxyConfiguration proxyConfiguration;
-
-    @Autowired
-    private RedisService redisService;
+    public CommonController(Configuration configuration, EndpointMapConfig endpointMapConfig,
+                            ProxyConfiguration proxyConfiguration, RedisService redisService,
+                            ForwardExecutorImp forwdExecutor, MockExecutorImp mockExecutor, DummyExecutorImp dummyExecutor) {
+        this.configuration = configuration;
+        this.endpointMapConfig = endpointMapConfig;
+        this.proxyConfiguration = proxyConfiguration;
+        this.redisService = redisService;
+        this.forwdExecutor = forwdExecutor;
+        this.mockExecutor = mockExecutor;
+        this.dummyExecutor = dummyExecutor;
+    }
 
     private final Gson gson = new GsonBuilder()
             .excludeFieldsWithoutExposeAnnotation()
@@ -107,7 +115,7 @@ public class CommonController {
                     .headers(new HttpHeaders())
                     .body((T) "Don't have forward rule for endpoint yet");
         }
-        if (mapperEndpoint != null && mapperEndpoint.getMethod() != null) {
+        if (mapperEndpoint.getMethod() != null) {
             boolean allowMethod = Arrays.stream(mapperEndpoint.getMethod()).anyMatch(method::equals);
             if (!allowMethod) {
                 return new ResponseEntity<>((T) "Method is not allow", HttpStatus.NOT_ACCEPTABLE);
@@ -138,7 +146,7 @@ public class CommonController {
                 .startProcessTime(startTime)
                 .build();
 
-        if (configuration.getRedisEnable() && !header.containsKey("Cache-disable")) {
+        if (configuration.isRedisEnable() && !header.containsKey("Cache-disable")) {
             String key = gson.toJson(requestWrapper);
             ResponseCacheEntity cacheValue = redisService.getValues(key);
             if (cacheValue != null) {
@@ -146,93 +154,30 @@ public class CommonController {
             }
         }
         try {
+            @SuppressWarnings("rawtypes")
+            ExecutorInterface topo = null;
             switch (Constants.API_MODE.from(mapperEndpoint.getMode())) {
                 case FORWARD: {
-                    return doForward(requestWrapper, mapperEndpoint, configuration.getRedisEnable());
+                    topo = forwdExecutor;
+                    break;
                 }
                 case MOCK: {
-                    return doMock(requestWrapper, mapperEndpoint);
+                    topo = mockExecutor;
+                    break;
                 }
                 default:
-                    logger.error("Request mode not found or develop yet.");
+                    topo = dummyExecutor;
             }
+            return topo.process(requestWrapper, mapperEndpoint, false);
         } catch (Exception exception) {
             logger.error(exception.getMessage(), exception);
             UUID checkpoint = UUID.randomUUID();
             HashMap<String, String> returnValue = new HashMap<>();
             returnValue.put("message", exception.getMessage());
             returnValue.put("checkpoint", checkpoint.toString());
-            logger.info(new Gson().toJson(requestWrapper) + "\n" + new Gson().toJson(returnValue));
+            logger.info("{}\n{}", new Gson().toJson(requestWrapper), new Gson().toJson(returnValue));
             return new ResponseEntity<>((T) new Gson().toJson(returnValue), HttpStatus.BAD_GATEWAY);
         }
 
-        logger.info(new Gson().toJson(requestWrapper) + "\n{Not supported yet}");
-        return new ResponseEntity<>((T) "{Not supported yet}", HttpStatus.NOT_ACCEPTABLE);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> ResponseEntity<T> doMock(RequestWrapper requestWrapper, MapEntry mapperEndpoint) {
-        String jsonMockPath = mapperEndpoint.getValue();
-
-        HttpHeaders responseHeaders = new HttpHeaders();
-        responseHeaders.setContentType(MediaType.APPLICATION_JSON);
-
-        StringBuilder log = new StringBuilder("\n\n-----------------------------\n");
-        log.append(String.format("Mock Request: %s", mapperEndpoint.getKey()));
-        return new ResponseEntity<>((T) FileUtils.getFileContent(jsonMockPath), responseHeaders, HttpStatus.OK);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> ResponseEntity<T> doForward(RequestWrapper requestWrapper, MapEntry mapperEndpoint, boolean usingRedis) throws IOException {
-        RequestWrapper responseWrapper = null;
-        HttpHeaders responseHeaders = new HttpHeaders();
-        try {
-            String forwardUrl = requestWrapper.getOriginUrl().replaceFirst(mapperEndpoint.getKey(), mapperEndpoint.getValue());
-            requestWrapper.setRequestUrl(forwardUrl);
-
-
-            responseWrapper = HTTPUtils.doRequestUsingHTTPUrlConnection(requestWrapper);
-            responseHeaders.setContentType(responseWrapper.getContentType());
-            if (responseWrapper.getHeaders() != null) {
-                for (String headerKey : responseWrapper.getHeaders().keySet()) {
-                    if (headerKey == null) {
-                        continue;
-                    }
-                    responseHeaders.put(headerKey, (List<String>) responseWrapper.getHeaders().get(headerKey));
-                }
-            }
-
-            if (usingRedis) {
-                ResponseCacheEntity cacheEntity = ResponseCacheEntity.builder()
-                        .responseBody(responseWrapper.getBody())
-                        .build();
-                redisService.putValues(gson.toJson(requestWrapper), cacheEntity);
-            }
-
-            responseWrapper.setProcessTime(System.currentTimeMillis() - requestWrapper.getStartProcessTime());
-        } catch (Exception exception) {
-            logger.error(exception.getMessage(), exception);
-        } finally {
-            if (configuration.getIsVerbose()) {
-                StringBuilder log = new StringBuilder("\n\n-----------------------------\n");
-                log.append("Request: \n");
-                log.append(new Gson().toJson(requestWrapper));
-                log.append("\nResponse: \n");
-                log.append(new Gson().toJson(responseWrapper));
-                logger.info(log.toString());
-            }
-        }
-
-
-        if (responseWrapper.getContentType() != null
-                && responseWrapper.getContentType().equals(MediaType.APPLICATION_PDF)) {
-            InputStream inputStream = Files.newInputStream(new File(responseWrapper.getFilePath()).toPath());
-            byte[] pdfBytes = FileUtils.readStreamBytes(inputStream);
-            return ResponseEntity.ok()
-                    .headers(responseHeaders)
-                    .contentType(MediaType.APPLICATION_PDF)
-                    .body((T) pdfBytes);
-        }
-        return new ResponseEntity<>((T) responseWrapper.getBody(), responseHeaders, HttpStatus.OK);
     }
 }
