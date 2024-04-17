@@ -16,6 +16,7 @@ import com.ducseul.apiforwarder.topology.ExecutorInterface;
 import com.ducseul.apiforwarder.utils.HTTPUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -30,6 +31,7 @@ import java.net.Proxy;
 import java.util.*;
 
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/**")
 public class CommonController {
     private final Configuration configuration;
@@ -39,18 +41,6 @@ public class CommonController {
     private final ForwardExecutorImp forwdExecutor;
     private final MockExecutorImp mockExecutor;
     private final DummyExecutorImp dummyExecutor;
-
-    public CommonController(Configuration configuration, EndpointMapConfig endpointMapConfig,
-                            ProxyConfiguration proxyConfiguration, RedisService redisService,
-                            ForwardExecutorImp forwdExecutor, MockExecutorImp mockExecutor, DummyExecutorImp dummyExecutor) {
-        this.configuration = configuration;
-        this.endpointMapConfig = endpointMapConfig;
-        this.proxyConfiguration = proxyConfiguration;
-        this.redisService = redisService;
-        this.forwdExecutor = forwdExecutor;
-        this.mockExecutor = mockExecutor;
-        this.dummyExecutor = dummyExecutor;
-    }
 
     private final Gson gson = new GsonBuilder()
             .excludeFieldsWithoutExposeAnnotation()

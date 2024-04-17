@@ -9,6 +9,7 @@ import com.ducseul.apiforwarder.utils.FileUtils;
 import com.ducseul.apiforwarder.utils.HTTPUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -24,16 +25,12 @@ import java.nio.file.Files;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 @SuppressWarnings("rawtypes")
 public class ForwardExecutorImp implements ExecutorInterface {
     private static final Logger logger = LoggerFactory.getLogger(ForwardExecutorImp.class);
     private final RedisService redisService;
     private final Configuration configuration;
-
-    public ForwardExecutorImp(RedisService redisService, Configuration configuration) {
-        this.redisService = redisService;
-        this.configuration = configuration;
-    }
 
     private final Gson gson = new GsonBuilder()
             .excludeFieldsWithoutExposeAnnotation()
