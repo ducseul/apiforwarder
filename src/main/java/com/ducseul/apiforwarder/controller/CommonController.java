@@ -9,10 +9,7 @@ import com.ducseul.apiforwarder.entity.MapEntry;
 import com.ducseul.apiforwarder.entity.RequestWrapper;
 import com.ducseul.apiforwarder.entity.ResponseCacheEntity;
 import com.ducseul.apiforwarder.service.RedisService;
-import com.ducseul.apiforwarder.topology.DummyExecutorImp;
-import com.ducseul.apiforwarder.topology.ForwardExecutorImp;
-import com.ducseul.apiforwarder.topology.MockExecutorImp;
-import com.ducseul.apiforwarder.topology.ExecutorInterface;
+import com.ducseul.apiforwarder.topology.*;
 import com.ducseul.apiforwarder.utils.HTTPUtils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -41,6 +38,7 @@ public class CommonController {
     private final ForwardExecutorImp forwdExecutor;
     private final MockExecutorImp mockExecutor;
     private final DummyExecutorImp dummyExecutor;
+    private final EvalMockExecutorImp evalMockExecutorImp;
 
     private final Gson gson = new GsonBuilder()
             .excludeFieldsWithoutExposeAnnotation()
@@ -153,6 +151,10 @@ public class CommonController {
                 }
                 case MOCK: {
                     topo = mockExecutor;
+                    break;
+                }
+                case EVAL: {
+                    topo = evalMockExecutorImp;
                     break;
                 }
                 default:

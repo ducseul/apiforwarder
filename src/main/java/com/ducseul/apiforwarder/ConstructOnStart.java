@@ -49,10 +49,15 @@ public class ConstructOnStart {
             for (MapEntry enpointMap : endpointMapConfig.getEndpointMapConfig()) {
                 switch (enpointMap.getMode()){
                     case "forward":
-                        logger.info(String.format("Map context path %s to %s", enpointMap.getKey(), enpointMap.getValue()));
+                        logger.info("Map context path {} to {}", enpointMap.getKey(), enpointMap.getValue());
                         break;
                     case "mock":
-                        logger.info(String.format("Map context path %s as file content %s", enpointMap.getKey(), enpointMap.getValue()));
+                        logger.info("Map context path {} as file content {}", enpointMap.getKey(), enpointMap.getValue());
+                        break;
+                    case "eval":
+                        logger.info("Map context path {} as javascript evaluate {}", enpointMap.getKey(), enpointMap.getValue());
+                        break;
+                    default:
                         break;
                 }
 
