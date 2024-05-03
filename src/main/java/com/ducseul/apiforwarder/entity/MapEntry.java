@@ -14,4 +14,10 @@ public class MapEntry {
     private String loadBalancer;
     private String stickMode;
     private String[] method;
+
+    /**
+     * for example: If origin being forward to is /abc => every cookie is for domain /abc.
+     * This will rewrite /abc to whatever current contextPath is.
+     * */
+    private boolean rewriteCookiePath;
 }
