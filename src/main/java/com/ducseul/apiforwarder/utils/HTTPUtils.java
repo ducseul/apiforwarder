@@ -200,7 +200,8 @@ public class HTTPUtils {
             returnValue.put("checkpoint", checkpoint.toString());
             responseWrapper.setBody(new Gson().toJson(returnValue));
         } finally {
-            if(responseWrapper.getHeaders().containsKey("Content-Encoding")){
+            if(responseWrapper.getHeaders() != null
+                    && responseWrapper.getHeaders().containsKey("Content-Encoding")){
                 //If old header is contain gzip compression then remove it
                 ((ArrayList<?>)responseWrapper.getHeaders().get("Content-Encoding")).remove("gzip");
             }

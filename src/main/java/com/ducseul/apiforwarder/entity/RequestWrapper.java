@@ -40,4 +40,14 @@ public class RequestWrapper {
     private Long startProcessTime;
     @Expose
     private Long processTime;
+
+    public void setRequestUrl(String requestUrl) {
+        this.requestUrl = requestUrl.replaceAll("(?<!:)/+", "/")
+        ;
+    }
+
+    public void setOriginUrl(String originUrl) {
+        this.originUrl = originUrl.replaceAll("(?<!:)/+", "/")
+        ;
+    }
 }

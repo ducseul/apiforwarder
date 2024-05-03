@@ -38,7 +38,7 @@ application:
 #        mode: mock
 #        priority: 1
 
-      - key: "/"
+      - key: "/voffice"
         value: "http://localhost:8080/voffice/"
         method: "GET, POST"
         mode: forward
