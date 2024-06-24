@@ -25,7 +25,8 @@ public class MockExecutorImp implements ExecutorInterface<String> {
         responseHeaders.setContentType(MediaType.APPLICATION_JSON);
 
         StringBuilder log = new StringBuilder("\n\n-----------------------------\n");
-        log.append(String.format("Mock Request: %s", mapperEndpoint.getKey()));
+        log.append(String.format("Mock Request: %s\n", mapperEndpoint.getKey()));
+        log.append(String.format("Request body: %s\n", requestWrapper.getBody()));
         logger.info("{}", log);
         return new ResponseEntity<>(FileUtils.getFileContent(jsonMockPath), responseHeaders, HttpStatus.OK);
     }
