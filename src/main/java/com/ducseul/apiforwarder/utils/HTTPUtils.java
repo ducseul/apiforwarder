@@ -183,6 +183,22 @@ public class HTTPUtils {
                         }
                         responseWrapper.setContentType(MediaType.APPLICATION_PDF);
                         break;
+                    case MediaType.IMAGE_PNG_VALUE: {
+                        Path imageFile = saveStreamToFile(inputStream, ".png");
+                        if(imageFile.toFile().exists() && imageFile.toFile().canRead()){
+                            responseWrapper.setFilePath(imageFile.toString());
+                        }
+                        responseWrapper.setContentType(MediaType.IMAGE_PNG);
+                        break;
+                    }
+                    case MediaType.IMAGE_JPEG_VALUE: {
+                        Path imageFile = saveStreamToFile(inputStream, ".jpeg");
+                        if(imageFile.toFile().exists() && imageFile.toFile().canRead()){
+                            responseWrapper.setFilePath(imageFile.toString());
+                        }
+                        responseWrapper.setContentType(MediaType.IMAGE_JPEG);
+                        break;
+                    }
                     default:
                         throw new RuntimeException("Unsupported content type: " + contentType);
                 }
@@ -225,10 +241,14 @@ public class HTTPUtils {
     }
 
     private static Path savePdfToFile(InputStream inputStream) throws IOException {
-        // Write PDF content to a temp file
-        Path tempFilePath = Files.createTempFile("api_response", ".pdf");
+        return saveStreamToFile(inputStream, ".pdf");
+    }
+
+    private static Path saveStreamToFile(InputStream inputStream, String suffix) throws IOException {
+        // Write input
+        Path tempFilePath = Files.createTempFile("api_response", suffix);
         Files.copy(inputStream, tempFilePath, StandardCopyOption.REPLACE_EXISTING);
-        System.out.println("PDF written to temp folder: " + tempFilePath.toString());
+        System.out.println("File written to temp folder: " + tempFilePath.toString());
         return tempFilePath;
     }
 
