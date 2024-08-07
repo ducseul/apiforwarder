@@ -76,12 +76,16 @@ public class ForwardExecutorImp implements ExecutorInterface {
         }
 
         if (responseWrapper.getContentType() != null && !responseWrapper.getContentType().equals(MediaType.APPLICATION_JSON)) {
-            InputStream inputStream = Files.newInputStream(new File(responseWrapper.getFilePath()).toPath());
-            byte[] pdfBytes = FileUtils.readStreamBytes(inputStream);
-            return ResponseEntity.ok()
-                    .headers(responseHeaders)
-                    .contentType(responseWrapper.getContentType())
-                    .body(pdfBytes);
+            try {
+                InputStream inputStream = Files.newInputStream(new File(responseWrapper.getFilePath()).toPath());
+                byte[] pdfBytes = FileUtils.readStreamBytes(inputStream);
+                return ResponseEntity.ok()
+                        .headers(responseHeaders)
+                        .contentType(responseWrapper.getContentType())
+                        .body(pdfBytes);
+            } catch (Exception exception){
+                logger.error(exception.getMessage(), exception);
+            }
         }
         return new ResponseEntity<>(responseWrapper.getBody(), responseHeaders, HttpStatus.OK);
     }

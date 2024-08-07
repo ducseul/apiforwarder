@@ -27,6 +27,7 @@ import java.util.zip.InflaterInputStream;
 
 public class HTTPUtils {
     private static final Logger logger = LoggerFactory.getLogger(CommonController.class);
+
     public RequestWrapper doRequest(RequestWrapper requestWrapper) {
         RequestWrapper responseWrapper = RequestWrapper.builder()
                 .requestUrl(requestWrapper.getRequestUrl())
@@ -80,7 +81,7 @@ public class HTTPUtils {
             } else {
                 throw new RuntimeException("No content type provided in the response.");
             }
-        } catch (Exception exception){
+        } catch (Exception exception) {
             UUID checkpoint = UUID.randomUUID();
             HashMap<String, String> returnValue = new HashMap<>();
             returnValue.put("message", exception.getMessage());
@@ -111,7 +112,7 @@ public class HTTPUtils {
             // Enable input/output streams
             connection.setDoOutput(true);
 
-            if(requestWrapper.getBody() != null && !requestWrapper.getBody().isEmpty()) {
+            if (requestWrapper.getBody() != null && !requestWrapper.getBody().isEmpty()) {
                 // Set content type based on the request body
                 connection.setRequestProperty("Content-Type", "application/json");
 
@@ -138,11 +139,12 @@ public class HTTPUtils {
             contentType = contentType.split(";")[0];
             if (contentType != null) {
                 switch (contentType) {
-                    case "application/json":
+                    case "application/json": {
                         String jsonResponse = readStream(inputStream);
                         responseWrapper.setContentType(MediaType.APPLICATION_JSON);
                         responseWrapper.setBody(jsonResponse);
                         break;
+                    }
                     case "application/octet-stream":
                         // Handle binary response (if needed)
                         throw new UnsupportedOperationException("Binary response handling not implemented.");
@@ -151,12 +153,12 @@ public class HTTPUtils {
                         throw new RuntimeException("Unsupported content type: " + contentType);
                     case "text/html":
                     case "text/javascript":
-                    case "text/css":
+                    case "text/css": {
                         // Handle HTML response (if needed)
                         // open the stream and put it into BufferedReader
                         StringBuilder htmlContent = new StringBuilder(500);
                         Reader reader;
-                        switch (connection.getContentEncoding()){
+                        switch (connection.getContentEncoding()) {
                             case "gzip":
                                 reader = new InputStreamReader(new GZIPInputStream(connection.getInputStream()));
                                 break;
@@ -167,33 +169,46 @@ public class HTTPUtils {
                         }
                         while (true) {
                             int ch = reader.read();
-                            if (ch==-1) {
+                            if (ch == -1) {
                                 break;
                             }
-                            htmlContent.append((char)ch);
+                            htmlContent.append((char) ch);
                         }
                         responseWrapper.setBody(htmlContent.toString());
                         responseWrapper.setContentType(MediaType.TEXT_HTML);
                         break;
-                    case "application/pdf":
+                    }
+                    case "application/pdf": {
                         // Handle PDF response here if needed
                         Path tempPath = savePdfToFile(inputStream);
-                        if(tempPath.toFile().exists() && tempPath.toFile().canRead()){
+                        if (tempPath.toFile().exists() && tempPath.toFile().canRead()) {
                             responseWrapper.setFilePath(tempPath.toString());
                         }
                         responseWrapper.setContentType(MediaType.APPLICATION_PDF);
                         break;
+                    }
                     case MediaType.IMAGE_PNG_VALUE: {
                         Path imageFile = saveStreamToFile(inputStream, ".png");
-                        if(imageFile.toFile().exists() && imageFile.toFile().canRead()){
+                        if (imageFile.toFile().exists() && imageFile.toFile().canRead()) {
                             responseWrapper.setFilePath(imageFile.toString());
                         }
                         responseWrapper.setContentType(MediaType.IMAGE_PNG);
                         break;
                     }
+                    //image/x-icon
+                    case "image/x-icon": {
+                        Path imageFile = saveStreamToFile(inputStream, ".ico");
+                        if (imageFile.toFile().exists() && imageFile.toFile().canRead()) {
+                            responseWrapper.setFilePath(imageFile.toString());
+                        }
+                        // Define a custom media type for image/x-icon
+                        MediaType mediaType = new MediaType("image", "x-icon");
+                        responseWrapper.setContentType(mediaType);
+                        break;
+                    }
                     case MediaType.IMAGE_JPEG_VALUE: {
                         Path imageFile = saveStreamToFile(inputStream, ".jpeg");
-                        if(imageFile.toFile().exists() && imageFile.toFile().canRead()){
+                        if (imageFile.toFile().exists() && imageFile.toFile().canRead()) {
                             responseWrapper.setFilePath(imageFile.toString());
                         }
                         responseWrapper.setContentType(MediaType.IMAGE_JPEG);
@@ -216,10 +231,10 @@ public class HTTPUtils {
             returnValue.put("checkpoint", checkpoint.toString());
             responseWrapper.setBody(new Gson().toJson(returnValue));
         } finally {
-            if(responseWrapper.getHeaders() != null
-                    && responseWrapper.getHeaders().containsKey("Content-Encoding")){
+            if (responseWrapper.getHeaders() != null
+                    && responseWrapper.getHeaders().containsKey("Content-Encoding")) {
                 //If old header is contain gzip compression then remove it
-                ((ArrayList<?>)responseWrapper.getHeaders().get("Content-Encoding")).remove("gzip");
+                ((ArrayList<?>) responseWrapper.getHeaders().get("Content-Encoding")).remove("gzip");
             }
         }
 
@@ -262,6 +277,7 @@ public class HTTPUtils {
             return response.toString();
         }
     }
+
     private Map<String, Serializable> getHeaders(HttpHeaders headers) {
         Map<String, List<String>> headerMap = headers.entrySet().stream()
                 .collect(HashMap::new,
@@ -284,7 +300,7 @@ public class HTTPUtils {
         // Set the timeouts in milliseconds
         requestFactory.setConnectTimeout(requestWrapper.getConnectionTimeout());
         requestFactory.setReadTimeout(requestWrapper.getReadTimeOut());
-        if(requestWrapper.getProxy() != null){
+        if (requestWrapper.getProxy() != null) {
             requestFactory.setProxy(requestWrapper.getProxy());
         }
         RestTemplate restTemplate = new RestTemplate(requestFactory);
