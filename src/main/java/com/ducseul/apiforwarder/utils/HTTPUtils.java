@@ -348,10 +348,10 @@ public class HTTPUtils {
                 String value = cookie.getValue();
                 cookiesValue.put(name, value);
                 // Process each cookie's name and value
-                System.out.println("Name: " + name + ", Value: " + value);
+//                System.out.println("Name: " + name + ", Value: " + value);
             }
         } else {
-            System.out.println("No cookies found in the request.");
+//            System.out.println("No cookies found in the request.");
         }
         return cookiesValue;
     }
