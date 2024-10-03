@@ -7,50 +7,39 @@ application:
         mode: eval
         method: "GET, POST"
         priority: 1
+
+      - key: "/api/DmThongbao/SendSMSCDDH"
+        value: "D:\\Temp\\ok.json"
+        method: "GET, POST"
+        mode: mock
+        priority: 1
+
+#      - key: "/rest/userSupport/list"
+#        value: ""
 #
-#      - key: "/rest/invitationOut/actions"
-#        value: "/home/mockFile/invitation_out_actions.json"
-#        method: "GET, POST"
-#        mode: mock
-#        priority: 1
-#
-#      - key: "/rest/mission/actions"
-#        value: "/home/mockFile/mission_actions.json"
-#        method: "GET, POST"
-#        mode: mock
-#        priority: 1
-#
-#      - key: "/rest/workProfileManage/actions"
-#        value: "/home/mockFile/work_profile_manager_actions.json"
-#        method: "GET, POST"
-#        mode: mock
-#        priority: 1
-#
-#      - key: "/rest/docSubmit/actions"
-#        value: "/home/mockFile/docSubmit_actions.json"
-#        method: "GET, POST"
-#        mode: mock
-#        priority: 1
-#
-#      - key: "/rest/count/countInHome"
-#        value: "/home/mockFile/count_in_home.json"
-#        method: "GET, POST"
-#        mode: mock
-#        priority: 1
+#      - key: "/rest/userSupport/detail"
+#        value: ""
 
       - key: "/voffice"
-        value: "http://localhost:8080/voffice/"
+        value: "http://localhost:8082/voffice"
         method: "GET, POST"
         mode: forward
         rewrite-cookie-path: true
         priority: 2
+
 #      - key: "/"
-#        value: "http://116.103.227.208:8080/"
+#        value: >
+#          http://116.103.227.208:8080/
+#          http://116.103.227.208:8081/
+#          http://116.103.227.208:8082/
 #        mode: forward
 #        load-balancer: "round-robin"
 #        stick-mode: "ip"
 #        priority: 2
-    verbose: true
+    verbose:
+      active: true
+      verbose-request-curl: true #Print request as Curl for easy Postman import
+      verbose-response-only: true
     connection-timeout: 5000
     read-timeout: 10000
     proxy:

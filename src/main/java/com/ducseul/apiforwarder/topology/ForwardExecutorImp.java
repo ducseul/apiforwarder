@@ -68,9 +68,17 @@ public class ForwardExecutorImp implements ExecutorInterface {
             if (configuration.isVerbose()) {
                 StringBuilder log = new StringBuilder("\n\n-----------------------------\n");
                 log.append("Request: \n");
-                log.append(new Gson().toJson(requestWrapper));
+                if (configuration.isVerboseRequestCurl()){
+                    log.append(requestWrapper.toCurl());
+                } else {
+                    log.append(new Gson().toJson(requestWrapper));
+                }
                 log.append("\nResponse: \n");
-                log.append(new Gson().toJson(responseWrapper));
+                if (configuration.isVerboseResponseOnly()){
+                    log.append(responseWrapper.getBody());
+                } else {
+                    log.append(new Gson().toJson(responseWrapper));
+                }
                 logger.info("{}", log);
             }
         }

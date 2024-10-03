@@ -158,14 +158,18 @@ public class HTTPUtils {
                         // open the stream and put it into BufferedReader
                         StringBuilder htmlContent = new StringBuilder(500);
                         Reader reader;
-                        switch (connection.getContentEncoding()) {
-                            case "gzip":
-                                reader = new InputStreamReader(new GZIPInputStream(connection.getInputStream()));
-                                break;
-                            case "br":
-                                throw new RuntimeException("jbrotli compress not supported yet");
-                            default:
-                                reader = new InputStreamReader(connection.getInputStream());
+                        try {
+                            switch (connection.getContentEncoding()) {
+                                case "gzip":
+                                    reader = new InputStreamReader(new GZIPInputStream(connection.getInputStream()));
+                                    break;
+                                case "br":
+                                    throw new RuntimeException("jbrotli compress not supported yet");
+                                default:
+                                    reader = new InputStreamReader(connection.getInputStream());
+                            }
+                        } catch (Exception ex) {
+                            reader = new InputStreamReader(connection.getInputStream());
                         }
                         while (true) {
                             int ch = reader.read();
@@ -214,6 +218,15 @@ public class HTTPUtils {
                         responseWrapper.setContentType(MediaType.IMAGE_JPEG);
                         break;
                     }
+                    case "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+                        Path transferFile = saveStreamToFile(inputStream, ".docx");
+                        if (transferFile.toFile().exists() && transferFile.toFile().canRead()) {
+                            responseWrapper.setFilePath(transferFile.toString());
+                        }
+                        MediaType mediaType = new MediaType("application", "vnd.openxmlformats-officedocument.wordprocessingml.document");
+                        responseWrapper.setContentType(mediaType);
+                        break;
+                    }
                     default:
                         throw new RuntimeException("Unsupported content type: " + contentType);
                 }
@@ -239,6 +252,23 @@ public class HTTPUtils {
         }
 
         return responseWrapper;
+    }
+
+    private static String getFileName(HttpURLConnection connection) {
+        String filename = connection.getHeaderField("Content-Disposition");
+        if (filename != null && filename.indexOf("=") != -1) {
+            String fileName = filename.split("=")[1]; //getting value after '='
+        } else {
+           //Might be filename inside connnection path. Else just random a file name
+            String urlPath = connection.getURL().getPath();
+            String[] slices = urlPath.split("/");
+            if (slices.length > 2){
+                filename = slices[slices.length - 1];
+            } else {
+                filename = UUID.randomUUID().toString();
+            }
+        }
+        return filename;
     }
 
     public static byte[] decodeBrotli(InputStream compressedInputStream) throws IOException {
@@ -268,7 +298,7 @@ public class HTTPUtils {
     }
 
     private static String readStream(InputStream inputStream) throws IOException {
-        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream))) {
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
             StringBuilder response = new StringBuilder();
             String line;
             while ((line = bufferedReader.readLine()) != null) {

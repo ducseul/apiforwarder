@@ -14,8 +14,14 @@ public class Configuration {
     @Autowired
     private Environment env;
 
-    @Value("${application.forwarder.verbose:false}")
+    @Value("${application.forwarder.verbose.active:false}")
     private boolean isVerbose;
+
+    @Value("${application.forwarder.verbose.verbose-request-curl:false}")
+    private boolean verboseRequestCurl;
+
+    @Value("${application.forwarder.verbose.verbose-response-only:false}")
+    private boolean verboseResponseOnly;
 
     @Value("${application.forwarder.connection-timeout}")
     private Integer connectionTimeout;
